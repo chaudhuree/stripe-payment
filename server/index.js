@@ -62,25 +62,36 @@ app.get('/api/products/:id', (req, res) => {
   res.json(product);
 });
 
-// Create payment intent
-app.post('/api/create-payment-intent', async (req, res) => {
+// Create Stripe Checkout Session
+app.post('/api/create-checkout-session', async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { amount, items } = req.body;
     
-    // Create a PaymentIntent with the order amount and currency
-    const paymentIntent = await stripeClient.paymentIntents.create({
-      amount: Math.round(amount * 100), // Stripe expects amount in cents
-      currency: 'usd',
-      automatic_payment_methods: {
-        enabled: true,
-      },
+    // Create a Checkout Session
+    const session = await stripeClient.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: items.map(item => ({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.name,
+            images: [item.image],
+            description: item.description,
+          },
+          unit_amount: Math.round(item.price * 100), // Stripe expects amount in cents
+        },
+        quantity: item.quantity,
+      })),
+      mode: 'payment',
+      success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.origin}/checkout`,
     });
 
     res.status(200).json({
-      clientSecret: paymentIntent.client_secret,
+      sessionId: session.id,
     });
   } catch (error) {
-    console.error('Error creating payment intent:', error);
+    console.error('Error creating checkout session:', error);
     res.status(500).json({ error: error.message });
   }
 });

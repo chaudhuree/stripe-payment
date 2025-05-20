@@ -1,109 +1,59 @@
-import { useState, useEffect } from 'react';
-import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { useState } from 'react';
+import { useStripe } from '@stripe/react-stripe-js';
 
-const CARD_ELEMENT_OPTIONS = {
-  style: {
-    base: {
-      color: '#32325d',
-      fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
-      fontSmoothing: 'antialiased',
-      fontSize: '16px',
-      '::placeholder': {
-        color: '#aab7c4',
-      },
-    },
-    invalid: {
-      color: '#fa755a',
-      iconColor: '#fa755a',
-    },
-  },
-};
-
-function PaymentForm({ clientSecret, amount, onSuccess, onError }) {
+function PaymentForm({ sessionId, amount, onSuccess, onError }) {
   const stripe = useStripe();
-  const elements = useElements();
-  const [error, setError] = useState(null);
   const [processing, setProcessing] = useState(false);
-  const [disabled, setDisabled] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!stripe || !elements) {
-      setDisabled(true);
-    } else {
-      setDisabled(false);
-    }
-  }, [stripe, elements]);
-
-  const handleChange = (event) => {
-    // Listen for changes in the CardElement
-    // and display any errors as the customer types their card details
-    setDisabled(event.empty);
-    setError(event.error ? event.error.message : '');
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    
-    if (!stripe || !elements) {
-      // Stripe.js has not loaded yet. Make sure to disable form submission until Stripe.js has loaded.
+  const handleCheckout = async () => {
+    if (!stripe) {
       return;
     }
 
     setProcessing(true);
+    setError(null);
 
     try {
-      const payload = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: elements.getElement(CardElement),
-          billing_details: {
-            name: 'Customer Name', // In a real app, you would collect this from the user
-          },
-        },
+      // Redirect to Stripe Checkout
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: sessionId
       });
 
-      if (payload.error) {
-        setError(`Payment failed: ${payload.error.message}`);
-        onError(payload.error.message);
-      } else {
-        if (payload.paymentIntent.status === 'succeeded') {
-          onSuccess();
-        }
+      if (error) {
+        setError(error.message);
+        onError(error.message);
+        setProcessing(false);
       }
     } catch (err) {
-      setError(`Payment failed: ${err.message}`);
+      setError(err.message);
       onError(err.message);
-    } finally {
       setProcessing(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="payment-form">
-      <div className="form-row">
-        <label htmlFor="card-element">Credit or debit card</label>
-        <div className="card-element-container">
-          <CardElement
-            id="card-element"
-            options={CARD_ELEMENT_OPTIONS}
-            onChange={handleChange}
-          />
-        </div>
-      </div>
-
+    <div className="payment-form">
       {error && (
-        <div className="card-error" role="alert">
+        <div className="payment-error">
           {error}
         </div>
       )}
-
+      
       <button
-        type="submit"
-        disabled={processing || disabled}
+        onClick={handleCheckout}
+        disabled={!stripe || processing}
         className="payment-button"
       >
-        {processing ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
+        {processing ? 'Processing...' : `Pay $${amount.toFixed(2)} with Stripe`}
       </button>
-    </form>
+      
+      <div className="payment-info">
+        <p>You will be redirected to Stripe's secure payment page.</p>
+        <p>For testing, use card number: 4242 4242 4242 4242</p>
+        <p>Any future expiration date, any 3-digit CVC, and any postal code.</p>
+      </div>
+    </div>
   );
 }
 

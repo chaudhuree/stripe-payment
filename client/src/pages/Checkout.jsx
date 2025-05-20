@@ -37,16 +37,24 @@ function Checkout() {
       setIsProcessing(true);
       setPaymentError(null);
 
-      // Create a payment intent on the server
-      const { data } = await axios.post('/api/create-payment-intent', {
+      // Create a checkout session on the server
+      const { data } = await axios.post('/api/create-checkout-session', {
         amount: getTotalPrice(),
+        items: cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          description: item.description || `${item.name} product`,
+          price: item.price,
+          image: item.image,
+          quantity: item.quantity
+        }))
       });
 
-      setClientSecret(data.clientSecret);
+      setClientSecret(data.sessionId); // Now storing the session ID instead of client secret
       setShowPaymentForm(true);
       setIsProcessing(false);
     } catch (err) {
-      console.error('Payment intent error:', err);
+      console.error('Checkout session error:', err);
       setPaymentError('An error occurred while preparing your payment. Please try again.');
       setIsProcessing(false);
     }
@@ -131,7 +139,7 @@ function Checkout() {
             <h3>Enter Payment Details</h3>
             <Elements stripe={stripePromise}>
               <PaymentForm 
-                clientSecret={clientSecret}
+                sessionId={clientSecret} /* Now using sessionId instead of clientSecret */
                 amount={getTotalPrice()}
                 onSuccess={handlePaymentSuccess}
                 onError={handlePaymentError}
