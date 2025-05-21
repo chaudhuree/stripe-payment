@@ -67,8 +67,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
   try {
     const { amount, items } = req.body;
     
-    // Create a Checkout Session
-    const session = await stripeClient.checkout.sessions.create({
+    // Create session parameters
+    const sessionParams = {
       payment_method_types: ['card'],
       line_items: items.map(item => ({
         price_data: {
@@ -76,7 +76,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
           product_data: {
             name: item.name,
             images: [item.image],
-            description: item.description,
+            description: item.description || item.name,
           },
           unit_amount: Math.round(item.price * 100), // Stripe expects amount in cents
         },
@@ -85,7 +85,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
       mode: 'payment',
       success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin}/checkout`,
-    });
+      allow_promotion_codes: true, // Allow users to enter promo codes on the checkout page if they want
+    };
+    
+    // Create a Checkout Session
+    const session = await stripeClient.checkout.sessions.create(sessionParams);
 
     res.status(200).json({
       sessionId: session.id,

@@ -32,6 +32,9 @@ function Checkout() {
     removeFromCart(productId);
   };
 
+
+
+
   const handleProceedToPayment = async () => {
     try {
       setIsProcessing(true);
@@ -115,9 +118,20 @@ function Checkout() {
       </div>
       
       <div className="cart-summary">
-        <div className="cart-total">
-          <span>Total:</span>
-          <span>${getTotalPrice().toFixed(2)}</span>
+        
+        {/* Order Summary */}
+        <div className="order-summary">
+          <div className="summary-row">
+            <span>Subtotal:</span>
+            <span>${getTotalPrice().toFixed(2)}</span>
+          </div>
+          
+          
+          
+          <div className="cart-total">
+            <span>Total:</span>
+            <span>${getTotalPrice().toFixed(2)}</span>
+          </div>
         </div>
         
         {paymentError && (
